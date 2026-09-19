@@ -5,10 +5,9 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
 import { loadConfig } from "./config/env.js";
+import passport from "./config/passport.js";
 import authRoutes from "./routes/auth.routes.js";
 import type { ErrorResponse } from "./types/auth.types.js";
-
-dotenv.config();
 
 const config = loadConfig();
 const app = express();
@@ -16,6 +15,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(passport.initialize());
 
 app.use("/", authRoutes);
 app.use("/api/auth", authRoutes);

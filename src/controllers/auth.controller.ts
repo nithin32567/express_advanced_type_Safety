@@ -154,3 +154,47 @@ export const protectedRoute = (
     user: req.user
   });
 };
+
+export const googleAuthCallback = (
+  req: Request,
+  res: Response
+): void => {
+  if (!req.user) {
+    res.redirect("/signin?error=authentication_failed");
+    return;
+  }
+  
+  const publicUser = toPublicUser(req.user as UserHydratedDocument);
+  const token = createToken({ userId: publicUser.id });
+
+  res.redirect(`/api/auth/google/success?token=${token}`);
+};
+
+export const googleSuccessRedirect = (
+  req: Request,
+  res: Response
+): void => {
+  const token = req.query.token as string;
+  
+  if (!token) {
+    res.redirect("/signin?error=missing_token");
+    return;
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Authenticating...</title>
+      </head>
+      <body>
+        <script>
+          localStorage.setItem("authToken", "${token}");
+          window.location.href = "/protected-page";
+        </script>
+      </body>
+    </html>
+  `;
+  
+  res.send(html);
+};

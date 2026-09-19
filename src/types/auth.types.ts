@@ -9,8 +9,9 @@ export interface PublicUser {
   id: string;
   name: string;
   email: string;
-  age: number;
-  phoneNumber: string;
+  age?: number;
+  phoneNumber?: string;
+  googleId?: string;
 }
 
 export interface AuthenticatedUser extends PublicUser {}

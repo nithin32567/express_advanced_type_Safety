@@ -43,7 +43,9 @@ export const EnvSchema = z
       .default(5000),
     DB_URI: z.string().min(1, "DB_URI environment variable is required"),
     JWT_SECRET: z.string().min(1, "JWT_SECRET environment variable is required"),
-    NODE_ENV: z.string().default("development")
+    NODE_ENV: z.string().default("development"),
+    GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID environment variable is required"),
+    GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET environment variable is required")
   })
   .refine(
     (data) => {
@@ -64,5 +66,7 @@ export const EnvSchema = z
     port: data.PORT,
     dbUri: data.DB_URI,
     jwtSecret: data.JWT_SECRET,
-    nodeEnv: data.NODE_ENV
+    nodeEnv: data.NODE_ENV,
+    googleClientId: data.GOOGLE_CLIENT_ID,
+    googleClientSecret: data.GOOGLE_CLIENT_SECRET
   }));

@@ -4,9 +4,10 @@ import mongoose, { Schema, type HydratedDocument, type Model } from "mongoose";
 export interface UserDocument {
   name: string;
   email: string;
-  password: string;
-  age: number;
-  phoneNumber: string;
+  password?: string;
+  age?: number;
+  phoneNumber?: string;
+  googleId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,11 +37,17 @@ const userSchema = new Schema<UserDocument, Model<UserDocument>>(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: [
+        function (this: UserDocument) {
+          return !this.googleId;
+        },
+        "Password is required"
+      ],
       minlength: [8, "Password must be at least 8 characters long"],
       select: false,
       validate: {
-        validator(value: string): boolean {
+        validator(value: string | undefined): boolean {
+          if (!value) return true;
           return /^[A-Za-z]/.test(value);
         },
         message: "Password must start with a letter"
@@ -48,15 +55,30 @@ const userSchema = new Schema<UserDocument, Model<UserDocument>>(
     },
     age: {
       type: Number,
-      required: [true, "Age is required"],
+      required: [
+        function (this: UserDocument) {
+          return !this.googleId;
+        },
+        "Age is required"
+      ],
       min: [1, "Age must be at least 1"],
       max: [120, "Age cannot be more than 120"]
     },
     phoneNumber: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: [
+        function (this: UserDocument) {
+          return !this.googleId;
+        },
+        "Phone number is required"
+      ],
       trim: true,
       match: [/^\d{10}$/, "Phone number must be exactly 10 digits"]
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true
     }
   },
   {
@@ -69,7 +91,9 @@ userSchema.pre("save", async function hashPassword(this: UserHydratedDocument): 
     return;
   }
 
-  this.password = await bcrypt.hash(this.password, SALT_ROUNDS);
+  if (this.password) {
+    this.password = await bcrypt.hash(this.password, SALT_ROUNDS);
+  }
 });
 
 export const User = mongoose.model<UserDocument>("User", userSchema);
