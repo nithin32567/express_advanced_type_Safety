@@ -3,28 +3,14 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { User, type UserHydratedDocument } from "../models/user.model.js";
+import { SigninSchema, SignupSchema } from "../schemas/auth.schemas.js";
 import type {
   AuthSuccessResponse,
   ErrorResponse,
   JwtPayload,
   ProtectedRouteResponse,
-  PublicUser,
-  SigninRequestBody,
-  SignupRequestBody,
-  ValidationResult
+  PublicUser
 } from "../types/auth.types.js";
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phonePattern = /^\d{10}$/;
-const passwordPattern = /^[A-Za-z]/;
-
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-};
-
-const normalizeString = (value: unknown): string | null => {
-  return typeof value === "string" ? value.trim() : null;
-};
 
 const toPublicUser = (user: UserHydratedDocument): PublicUser => {
   return {
@@ -46,98 +32,6 @@ const createToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, jwtSecret, {
     expiresIn: "7d"
   });
-};
-
-const validateSignupBody = (body: unknown): ValidationResult<SignupRequestBody> => {
-  const errors: string[] = [];
-
-  if (!isRecord(body)) {
-    return {
-      value: null,
-      errors: ["Request body must be a JSON object"]
-    };
-  }
-
-  const name = normalizeString(body.name);
-  const email = normalizeString(body.email)?.toLowerCase() ?? null;
-  const password = typeof body.password === "string" ? body.password : null;
-  const phoneNumber = normalizeString(body.phoneNumber);
-  const age = typeof body.age === "number" ? body.age : Number(body.age);
-
-  if (name === null || name.length < 3 || name.length > 50) {
-    errors.push("Name must be between 3 and 50 characters");
-  }
-
-  if (email === null || email.length < 4 || email.length > 50 || !emailPattern.test(email)) {
-    errors.push("Email must be a valid email address between 4 and 50 characters");
-  }
-
-  if (password === null || password.length < 8 || !passwordPattern.test(password)) {
-    errors.push("Password must be at least 8 characters and start with a letter");
-  }
-
-  if (!Number.isInteger(age) || age < 1 || age > 120) {
-    errors.push("Age must be an integer between 1 and 120");
-  }
-
-  if (phoneNumber === null || !phonePattern.test(phoneNumber)) {
-    errors.push("Phone number must be exactly 10 digits");
-  }
-
-  if (errors.length > 0 || name === null || email === null || password === null || phoneNumber === null) {
-    return {
-      value: null,
-      errors
-    };
-  }
-
-  return {
-    value: {
-      name,
-      email,
-      password,
-      age,
-      phoneNumber
-    },
-    errors: []
-  };
-};
-
-const validateSigninBody = (body: unknown): ValidationResult<SigninRequestBody> => {
-  const errors: string[] = [];
-
-  if (!isRecord(body)) {
-    return {
-      value: null,
-      errors: ["Request body must be a JSON object"]
-    };
-  }
-
-  const email = normalizeString(body.email)?.toLowerCase() ?? null;
-  const password = typeof body.password === "string" ? body.password : null;
-
-  if (email === null || !emailPattern.test(email)) {
-    errors.push("Email must be a valid email address");
-  }
-
-  if (password === null || password.length === 0) {
-    errors.push("Password is required");
-  }
-
-  if (errors.length > 0 || email === null || password === null) {
-    return {
-      value: null,
-      errors
-    };
-  }
-
-  return {
-    value: {
-      email,
-      password
-    },
-    errors: []
-  };
 };
 
 const isDuplicateKeyError = (error: unknown): boolean => {
@@ -169,19 +63,20 @@ export const signup = async (
   next: NextFunction
 ): Promise<Response<AuthSuccessResponse | ErrorResponse> | void> => {
   try {
-    const validation = validateSignupBody(req.body);
+    const validation = SignupSchema.safeParse(req.body);
 
-    if (validation.value === null) {
-      return sendError(res, 400, validation.errors.join(", "));
+    if (!validation.success) {
+      const errorMessages = validation.error.issues.map((err) => err.message).join(", ");
+      return sendError(res, 400, errorMessages);
     }
 
-    const existingUser = await User.exists({ email: validation.value.email });
+    const existingUser = await User.exists({ email: validation.data.email });
 
     if (existingUser !== null) {
       return sendError(res, 409, "Email already exists");
     }
 
-    const user = await User.create(validation.value);
+    const user = await User.create(validation.data);
     const publicUser = toPublicUser(user);
     const token = createToken({ userId: publicUser.id });
 
@@ -212,19 +107,20 @@ export const signin = async (
   next: NextFunction
 ): Promise<Response<AuthSuccessResponse | ErrorResponse> | void> => {
   try {
-    const validation = validateSigninBody(req.body);
+    const validation = SigninSchema.safeParse(req.body);
 
-    if (validation.value === null) {
-      return sendError(res, 400, validation.errors.join(", "));
+    if (!validation.success) {
+      const errorMessages = validation.error.issues.map((err) => err.message).join(", ");
+      return sendError(res, 400, errorMessages);
     }
 
-    const user = await User.findOne({ email: validation.value.email }).select("+password").exec();
+    const user = await User.findOne({ email: validation.data.email }).select("+password").exec();
 
     if (user === null) {
       return sendError(res, 401, "Invalid email or password");
     }
 
-    const isPasswordMatch = await bcrypt.compare(validation.value.password, user.password);
+    const isPasswordMatch = await bcrypt.compare(validation.data.password, user.password);
 
     if (!isPasswordMatch) {
       return sendError(res, 401, "Invalid email or password");

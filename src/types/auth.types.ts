@@ -1,15 +1,9 @@
-export interface SignupRequestBody {
-  name: string;
-  email: string;
-  password: string;
-  age: number;
-  phoneNumber: string;
-}
+import { z } from "zod";
+import { EnvSchema, SigninSchema, SignupSchema } from "../schemas/auth.schemas.js";
 
-export interface SigninRequestBody {
-  email: string;
-  password: string;
-}
+export type SignupRequestBody = z.infer<typeof SignupSchema>;
+
+export type SigninRequestBody = z.infer<typeof SigninSchema>;
 
 export interface PublicUser {
   id: string;
@@ -43,12 +37,7 @@ export interface JwtPayload {
   userId: string;
 }
 
-export interface EnvConfig {
-  port: number;
-  dbUri: string;
-  jwtSecret: string;
-  nodeEnv: string;
-}
+export type EnvConfig = z.infer<typeof EnvSchema>;
 
 export interface ValidationResult<T> {
   value: T | null;
