@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protected Page</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f4f7fb;
+      color: #172033;
+      padding: 24px;
+    }
+
+    .panel {
+      width: min(100%, 560px);
+      background: #ffffff;
+      border: 1px solid #dce4f0;
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 18px 45px rgba(21, 35, 62, 0.12);
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: #64748b;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .user-details {
+      display: grid;
+      gap: 12px;
+      margin: 24px 0;
+    }
+
+    .detail {
+      border: 1px solid #dce4f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      background: #f8fafc;
+    }
+
+    .label {
+      display: block;
+      color: #64748b;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <h1>Protected Page</h1>
+    <p id="status">Checking your access...</p>
+
+    <section class="user-details" id="userDetails" hidden>
+      <div class="detail">
+        <span class="label">Name</span>
+        <span class="value" id="name"></span>
+      </div>
+      <div class="detail">
+        <span class="label">Email</span>
+        <span class="value" id="email"></span>
+      </div>
+      <div class="detail">
+        <span class="label">Age</span>
+        <span class="value" id="age"></span>
+      </div>
+      <div class="detail">
+        <span class="label">Phone</span>
+        <span class="value" id="phoneNumber"></span>
+      </div>
+    </section>
+
+    <button type="button" id="logoutButton">Logout</button>
+  </main>
+
+  <script>
+    const token = localStorage.getItem("authToken");
+    const status = document.getElementById("status");
+    const userDetails = document.getElementById("userDetails");
+    const logoutButton = document.getElementById("logoutButton");
+
+    const redirectToSignin = () => {
+      localStorage.removeItem("authToken");
+      window.location.href = "/signin";
+    };
+
+    logoutButton.addEventListener("click", redirectToSignin);
+
+    const loadProtectedPage = async () => {
+      if (!token) {
+        redirectToSignin();
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/auth/protected", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          status.textContent = data.message;
+          status.className = "error";
+          setTimeout(redirectToSignin, 1000);
+          return;
+        }
+
+        document.getElementById("name").textContent = data.user.name;
+        document.getElementById("email").textContent = data.user.email;
+        document.getElementById("age").textContent = data.user.age;
+        document.getElementById("phoneNumber").textContent = data.user.phoneNumber;
+
+        status.textContent = data.message;
+        userDetails.hidden = false;
+      } catch (error) {
+        status.textContent = "Unable to validate your token";
+        status.className = "error";
+        setTimeout(redirectToSignin, 1000);
+      }
+    };
+
+    loadProtectedPage();
+  </script>
+</body>
+</html>
